@@ -1,0 +1,69 @@
+<project name="FatCat" default="compile" basedir=".">
+	
+	<property name="src" value="src/java" />
+	<property name="build" value="bin" />
+	<property name="lib" value="lib" />
+	<property name="build.compiler" value="modern" />
+	
+	<target name="init">
+		<tstamp />
+		<mkdir dir="${build}" />
+	</target>
+	
+	<target name="compile" depends="init">
+		
+		<javac 
+			srcdir="${src}" 
+			destdir="${build}"
+			debug="on"
+			deprecation="on"
+			debuglevel="lines,vars,source">
+			
+			<compilerarg value="-Xlint:unchecked"/>
+			
+			<classpath>
+				<pathelement path="${build}"/>
+				<fileset dir="${lib}">
+					<include name="**/*.jar"/>
+				</fileset>
+			</classpath>
+			
+		</javac>
+			
+	</target>
+	
+	<target name="run" depends="init,compile">
+		<java classname="se.c0la.fatcat.FatCat">
+			<classpath>
+				<pathelement path="${build}"/>
+				<fileset dir="${lib}">
+					<include name="**/*.jar"/>
+				</fileset>
+			</classpath>
+		</java>
+	</target>
+	
+	<target name="clean" depends="init">
+		<delete dir="${build}"/>
+	</target>
+	
+	<path id="jar.classpath">
+	</path>
+	
+	<target name="jar" depends="compile">
+
+		<manifestclasspath property="mf.classpath" jarfile="fatcat.jar">
+			<classpath refid="jar.classpath" />
+		</manifestclasspath>
+		
+		<jar destfile="fatcat.jar" basedir="${build}">
+			 
+			<manifest>
+				<attribute name="Main-Class" value="net.quenchnetworks.panthera.searchserver.SearchServer" />
+				<attribute name="Class-Path" value="${mf.classpath}" />
+			</manifest>
+		
+		</jar>
+	</target>
+		
+</project>
