@@ -59,7 +59,7 @@
 		<jar destfile="fatcat.jar" basedir="${build}">
 			 
 			<manifest>
-				<attribute name="Main-Class" value="net.quenchnetworks.panthera.searchserver.SearchServer" />
+				<attribute name="Main-Class" value="se.c0la.fatcat.FatCat" />
 				<attribute name="Class-Path" value="${mf.classpath}" />
 			</manifest>
 		
