@@ -17,7 +17,8 @@
 			destdir="${build}"
 			debug="on"
 			deprecation="on"
-			debuglevel="lines,vars,source">
+			debuglevel="lines,vars,source"
+			includeantruntime="false">
 			
 			<compilerarg value="-Xlint:unchecked"/>
 			
