@@ -37,6 +37,10 @@ public class ServerContext
 
 	private Map<String, Channel> channels;
 	
+	private String serverName;
+	private String serverInfo;
+	private String serverVersion = "1.3.3.7";
+	
 	private int maxUserCount;
 	private int maxChannelCount;
 
@@ -56,18 +60,23 @@ public class ServerContext
 		channels = new TreeMap<String, Channel>(new CaseInsensitiveStringComparator());
 
 		ircProtocol = new IRCProtocol(this);
-
-		operators.put("erik", new Operator("erik", "25cfe5b055cf6b1fd5205f36a43c9a0eb12d3b67a6064973d69368e186d19b62"));
-		operators.put("emil", new Operator("emil", "1639622dfac80e688b73aa31848e297de8d82bac7d2b724a09ec6554165cf182"));
 	}
 
 	// Active helper objects
 	public AsyncServer getServer() { return server; }
-
+	public void addOperator(String name, Operator o) {
+		operators.put(name, o);
+	}
+	
+	
 	// Server info
-	public String getServerName() { return "fatcat.c0la.se"; }
-	public String getServerVersion() { return "1.3.3.7"; }
-	public String getServerInfo() { return "Life is a cheesecake"; }
+	public String getServerName() { return serverName; }
+	public void setServerName(String v) { serverName = v; }
+	
+	public String getServerVersion() { return serverVersion; }
+	public void setServerInfo(String v) { serverInfo = v; }
+	
+	public String getServerInfo() { return serverInfo; }
 	public Date getStartDate() { return startDate; }
 
 	// Server statistics

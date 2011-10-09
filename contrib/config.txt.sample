@@ -1,0 +1,6 @@
+ServerName fatcat.c0la.se
+ServerInfo :Life is a cheesecake
+Listen 6667
+Listen 6668
+
+#Oper nick password

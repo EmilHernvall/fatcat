@@ -1218,9 +1218,10 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		Date today = new Date();
 		NumericResponse modeIs = NumericResponse.RPL_TIME;
 
-		String text = modeIs.getText()
+		String text = String.format(":%s %03d %s", ctx.getServerName(), modeIs.getNum(),
+			modeIs.getText()
 			.replace("<server>", ctx.getServerName())
-			.replace("<time>", dateFormatter.format(today));
+			.replace("<time>", dateFormatter.format(today)));
 
 		server.sendMessage(user.getClient(), text);
 	}
