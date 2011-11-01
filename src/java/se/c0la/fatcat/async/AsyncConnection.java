@@ -5,7 +5,7 @@ import java.net.*;
 import java.io.*;
 import java.nio.channels.*;
 
-public class AsyncClient implements Comparable<AsyncClient>
+public class AsyncConnection implements Comparable<AsyncConnection>
 {
 	private int seq;
 	private SelectionKey key;
@@ -18,7 +18,7 @@ public class AsyncClient implements Comparable<AsyncClient>
     
     private Object userObject;
 
-	public AsyncClient(int seq, SelectionKey key)
+	public AsyncConnection(int seq, SelectionKey key)
 	{
 		this.seq = seq;
 		this.key = key;
@@ -98,7 +98,7 @@ public class AsyncClient implements Comparable<AsyncClient>
 	//
 	
 	@Override
-	public int compareTo(AsyncClient client)
+	public int compareTo(AsyncConnection client)
 	{
 		return seq - client.getSeq();
 	}
@@ -106,11 +106,11 @@ public class AsyncClient implements Comparable<AsyncClient>
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (!(obj instanceof AsyncClient)) {
+		if (!(obj instanceof AsyncConnection)) {
 			return false;
 		}
 		
-		AsyncClient b = (AsyncClient)obj;
+		AsyncConnection b = (AsyncConnection)obj;
 	
 		return seq == b.getSeq();
 	}

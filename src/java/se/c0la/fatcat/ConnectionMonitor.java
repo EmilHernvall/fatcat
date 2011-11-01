@@ -30,20 +30,20 @@ public class ConnectionMonitor implements Runnable
 	{
 		while (true) {
 			try {
-				Set<AsyncClient> clients = server.getClients();
+				Set<AsyncConnection> clients = server.getClients();
 				
 				long diff = 0;
-				for (AsyncClient client : clients) {
+				for (AsyncConnection conn : clients) {
 				
-					diff = System.currentTimeMillis() - client.getLastActivity();
+					diff = System.currentTimeMillis() - conn.getLastActivity();
 					if (diff > PING_INTERVAL + TIMEOUT_INTERVAL) {
-						pingTimeout(client);
+						pingTimeout(conn);
 						continue;
 					}
 					
-					diff = System.currentTimeMillis() - client.getLastHeartBeat();
+					diff = System.currentTimeMillis() - conn.getLastHeartBeat();
 					if (diff > PING_INTERVAL) {
-						sendPing(client);
+						sendPing(conn);
 						continue;
 					}
 				}
@@ -58,23 +58,23 @@ public class ConnectionMonitor implements Runnable
 		}
 	}
 	
-	private void sendPing(AsyncClient asyncClient)
+	private void sendPing(AsyncConnection conn)
 	{	
-        Client client = (Client)asyncClient.getUserObject();
+        Client client = (Client)conn.getUserObject();
 		User user = ctx.getUser(client);
 		if (user == null) {
 			return;
 		}
 		
-		asyncClient.setLastHeartBeat(System.currentTimeMillis());
+		conn.setLastHeartBeat(System.currentTimeMillis());
 		
 		PropagationProtocol propProtocol = user.getPropagationProtocol();
 		propProtocol.sendHeartBeat(user);
 	}
 	
-	private void pingTimeout(AsyncClient asyncClient)
+	private void pingTimeout(AsyncConnection conn)
 	{
-        Client client = (Client)asyncClient.getUserObject();
+        Client client = (Client)conn.getUserObject();
 		ctx.setQuitMessage(client, "Ping timeout");
 		client.closeConnection();
 	}

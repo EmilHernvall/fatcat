@@ -5,27 +5,27 @@ import se.c0la.fatcat.async.*;
 public class SocketClient implements Client
 {
     private AsyncServer server;
-    private AsyncClient client;
+    private AsyncConnection conn;
 
-    public SocketClient(AsyncServer server, AsyncClient client)
+    public SocketClient(AsyncServer server, AsyncConnection conn)
     {
         this.server = server;
-        this.client = client;
+        this.conn = conn;
     }
 
     public String getHost()
     {
-        return client.getHost();
+        return conn.getHost();
     }
     
     public void sendMessage(String message)
     {
-        server.sendMessage(client, message);
+        server.sendMessage(conn, message);
     }
     
     public void closeConnection()
     {
-        server.closeConnection(client);
+        server.closeConnection(conn);
     }
     
     @Override
@@ -37,14 +37,14 @@ public class SocketClient implements Client
         
         SocketClient b = (SocketClient)obj;
         
-        return client.equals(b.client);
+        return conn.equals(b.conn);
     }
     
     @Override
     public int hashCode()
     {
         int code = 17;
-        code = 31 * code + client.getSeq();
+        code = 31 * code + conn.getSeq();
         
         return code;
     }

@@ -12,7 +12,7 @@ public class AsyncServer
 {
 	private final static int BUFFER_SIZE = 8092;
 	
-	private List<AsyncClientListener> listeners;
+	private List<AsyncConnectionListener> listeners;
 	private List<Integer> listenPorts;
 
 	private Selector socketSelector = null;
@@ -20,9 +20,9 @@ public class AsyncServer
     private List<ServerSocket> sockets = null;
 	private ByteBuffer readBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 	
-	private Set<AsyncClient> clients;
-	private Queue<AsyncClient> writeQueue;
-	private Queue<AsyncClient> disconnectQueue;
+	private Set<AsyncConnection> clients;
+	private Queue<AsyncConnection> writeQueue;
+	private Queue<AsyncConnection> disconnectQueue;
 	
 	private int clientSequence;
     
@@ -32,37 +32,37 @@ public class AsyncServer
 	{
         sockets = new ArrayList<ServerSocket>();
 		listenPorts = new ArrayList<Integer>();
-		listeners = new ArrayList<AsyncClientListener>();
-		clients = new ConcurrentSkipListSet<AsyncClient>();
-		writeQueue = new ConcurrentLinkedQueue<AsyncClient>();
-		disconnectQueue = new ConcurrentLinkedQueue<AsyncClient>();
+		listeners = new ArrayList<AsyncConnectionListener>();
+		clients = new ConcurrentSkipListSet<AsyncConnection>();
+		writeQueue = new ConcurrentLinkedQueue<AsyncConnection>();
+		disconnectQueue = new ConcurrentLinkedQueue<AsyncConnection>();
 		
 		clientSequence = 0;
 	}
 	
-	public void addClientListener(AsyncClientListener listener)
+	public void addClientListener(AsyncConnectionListener listener)
 	{
 		listeners.add(listener);
 	}
 	
-	public void removeClientListener(AsyncClientListener listener)
+	public void removeClientListener(AsyncConnectionListener listener)
 	{
 		listeners.remove(listener);
 	}
 	
-	public Set<AsyncClient> getClients()
+	public Set<AsyncConnection> getClients()
 	{
 		return Collections.unmodifiableSet(clients);
 	}
 	
-	public void sendMessage(AsyncClient client, String message)
+	public void sendMessage(AsyncConnection client, String message)
 	{
 		client.addMessage(message);
 		writeQueue.offer(client);
 		socketSelector.wakeup();
 	}
 	
-	public void closeConnection(AsyncClient client)
+	public void closeConnection(AsyncConnection client)
 	{
 		disconnectQueue.add(client);
 		socketSelector.wakeup();
@@ -119,7 +119,7 @@ public class AsyncServer
 		
 			// Check the list of clients with pending writes
 			// and set them to write mode
-			AsyncClient client;
+			AsyncConnection client;
 			while ((client = writeQueue.poll()) != null) {
 				try {
 					SelectionKey key = client.getSelectionKey();
@@ -187,12 +187,12 @@ public class AsyncServer
 		// Retrieve the SectionKey and associate it with 
 		// a new Client object
 		SelectionKey newKey = clientChannel.keyFor(socketSelector);
-		AsyncClient client = new AsyncClient(clientSequence++, newKey);
+		AsyncConnection client = new AsyncConnection(clientSequence++, newKey);
 		clients.add(client);
 		newKey.attach(client);
         
 		// Notify listeners
-		for (AsyncClientListener listener : listeners) {
+		for (AsyncConnectionListener listener : listeners) {
 			listener.connected(client);
 		}
 		
@@ -203,7 +203,7 @@ public class AsyncServer
 	private void read(SelectionKey key)
 	throws IOException
 	{
-		AsyncClient client = (AsyncClient)key.attachment();
+		AsyncConnection client = (AsyncConnection)key.attachment();
 		SocketChannel clientChannel = client.getChannel();
 		
 		readBuffer.clear();
@@ -241,7 +241,7 @@ public class AsyncServer
 			data = data.substring(idx + 1);
 			
 			// Notify listeners
-			for (AsyncClientListener listener : listeners) {
+			for (AsyncConnectionListener listener : listeners) {
 				listener.messageReceived(client, line);
 			}
 		}
@@ -258,7 +258,7 @@ public class AsyncServer
 	private void write(SelectionKey key)
 	throws IOException
 	{
-		AsyncClient client = (AsyncClient)key.attachment();
+		AsyncConnection client = (AsyncConnection)key.attachment();
 		SocketChannel clientChannel = client.getChannel();
 		
 		List<String> messages = client.getMessages();
@@ -274,7 +274,7 @@ public class AsyncServer
 		key.interestOps(SelectionKey.OP_READ);
 	}
 	
-	private void disconnect(AsyncClient client)
+	private void disconnect(AsyncConnection client)
 	{
 		clients.remove(client);
 	
@@ -292,7 +292,7 @@ public class AsyncServer
 		}
 
 		// Notify listeners
-		for (AsyncClientListener listener : listeners) {
+		for (AsyncConnectionListener listener : listeners) {
 			listener.disconnected(client);
 		}
 	}

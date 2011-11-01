@@ -10,8 +10,16 @@ public class FatCat
 	public static void main(String[] args)
 	{
 		try {
+            if (args.length > 0) {
+                if ("genpw".equals(args[0]) && args.length > 1) {
+                    String pw = args[1];
+                    System.out.println(Operator.getHash(pw));
+                }
+                
+                return;
+            }
+        
 			AsyncServer server = new AsyncServer();
-			
 			ServerContext ctx = new ServerContext(server);
 			
 			ConfigReader config = new ConfigReader();

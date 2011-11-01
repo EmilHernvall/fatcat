@@ -7,7 +7,7 @@ public class Operator
 {
 	private String username;
 	private String password;
-	private byte[] salt = "foobar".getBytes();
+	private final static byte[] salt = "535ert3532r234dr3".getBytes();
 
 	public Operator(String username, String password)
 	throws NoSuchAlgorithmException
@@ -25,7 +25,7 @@ public class Operator
 		return password.equals(challenge);
 	}
 
-	private String getHash(String password)
+	public static String getHash(String password)
 	throws NoSuchAlgorithmException
 	{
 		byte[] bytes;
