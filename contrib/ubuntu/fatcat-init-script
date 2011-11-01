@@ -1,0 +1,69 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          ircd
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# X-Interactive:     true
+# Short-Description: Start/stop fatcat ircd server
+### END INIT INFO
+
+NAME="fatcat_ircd"
+DESC="Fatcat IRCd"
+JAVA="/usr/bin/java"
+JARFILE=/usr/local/bin/fatcat/fatcat.jar
+PIDFILE=/tmp/$NAME.pid
+LOGFILE=/tmp/$NAME.log
+DAEMON_ARGS="-jar $JARFILE"
+FATCAT_USER=fatcat
+
+do_start() {
+
+        start-stop-daemon --start \
+                --user $FATCAT_USER \
+                --chuid $FATCAT_USER \
+                --pidfile $PIDFILE \
+		--make-pidfile \
+		--background \
+                --exec $JAVA -- $DAEMON_ARGS >>$LOGFILE
+        return $?
+
+}
+
+do_stop() {
+        start-stop-daemon --stop \
+                --retry=TERM/30/KILL/5 \
+                --pidfile $PIDFILE
+        rm -f $PIDFILE
+        return "$?"
+}
+
+case "$1" in
+start)
+        echo "Starting Fatcat IRCd."
+        do_start
+        echo "Fatcat IRCd Started"
+        ;;
+
+stop)
+        echo "Shutting Down Fatcat IRCd."
+        do_stop
+        echo "Fatcat IRCd Is Now Down"
+        ;;
+
+restart)
+        echo "Restarting Fatcat IRCd..."
+        do_stop
+        sleep 10
+        do_start
+        echo "Fatcat IRCd Restarted"
+        ;;
+
+*)
+        echo "Usage: $0 start|stop|restart"
+        exit 1
+        esac
+        exit 0
+
+        ;;
