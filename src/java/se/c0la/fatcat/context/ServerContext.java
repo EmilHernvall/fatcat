@@ -37,6 +37,9 @@ public class ServerContext
 	
 	private volatile int maxUserCount;
 	private volatile int maxChannelCount;
+	private String serverName;
+	private String serverInfo;
+	private String serverVersion = "0.1";
 
 	private volatile long maxUserCountHappened;
 	private volatile long maxChannelCountHappened;
@@ -47,19 +50,13 @@ public class ServerContext
         this.listener = new EventAdapter();
 
 		this.startDate = new Date();
+        
+        operators = new HashMap<String, Operator>();
 
 		users = new HashMap<Client, User>();
 		nicks = new TreeMap<String, User>(new CaseInsensitiveStringComparator());
 
 		channels = new TreeMap<String, Channel>(new CaseInsensitiveStringComparator());
-
-        try {
-            operators = new HashMap<String, Operator>();
-            operators.put("erik", new Operator("erik", "25cfe5b055cf6b1fd5205f36a43c9a0eb12d3b67a6064973d69368e186d19b62"));
-            operators.put("emil", new Operator("emil", "1639622dfac80e688b73aa31848e297de8d82bac7d2b724a09ec6554165cf182"));
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
 	}
     
     public void setEventListener(EventListener listener)
@@ -69,11 +66,18 @@ public class ServerContext
 
 	// Active helper objects
 	public AsyncServer getServer() { return server; }
-
+	public void addOperator(String name, Operator o) {
+		operators.put(name, o);
+	}
+	
 	// Server info
-	public String getServerName() { return "fatcat.c0la.se"; }
-	public String getServerVersion() { return "1.3.3.7"; }
-	public String getServerInfo() { return "Life is a cheesecake"; }
+	public String getServerName() { return serverName; }
+	public void setServerName(String v) { serverName = v; }
+	
+	public String getServerVersion() { return serverVersion; }
+	public void setServerInfo(String v) { serverInfo = v; }
+	
+	public String getServerInfo() { return serverInfo; }
 	public Date getStartDate() { return startDate; }
 
 	// Server statistics

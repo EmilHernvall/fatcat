@@ -13,6 +13,7 @@ public class AsyncServer
 	private final static int BUFFER_SIZE = 8092;
 	
 	private List<AsyncClientListener> listeners;
+	private List<Integer> listenPorts;
 
 	private Selector socketSelector = null;
     //private ServerSocketChannel serverChannel = null;
@@ -30,6 +31,7 @@ public class AsyncServer
 	public AsyncServer()
 	{
         sockets = new ArrayList<ServerSocket>();
+		listenPorts = new ArrayList<Integer>();
 		listeners = new ArrayList<AsyncClientListener>();
 		clients = new ConcurrentSkipListSet<AsyncClient>();
 		writeQueue = new ConcurrentLinkedQueue<AsyncClient>();
@@ -73,25 +75,33 @@ public class AsyncServer
         socketSelector.wakeup();
     }
 	
+	public void addListenPort(int port) {
+		listenPorts.add(port);
+	}
+	
 	public void listen(int port)
 	throws IOException
 	{
-		listen(new int[] { port });
+		listenPorts.add(port);
+		listen();
 	}
 	
-	public void listen(int[] ports)
+	public void listen()
 	throws IOException
 	{
 		if (socketSelector != null) {
 			throw new IllegalStateException("Server has already been initialized.");
 		}
+		
+		if(listenPorts.size() == 0)
+			throw new IllegalStateException("No listening ports configured!");
 	
 		// Retrieve a selector
 		SelectorProvider provider = SelectorProvider.provider();
 		this.socketSelector = provider.openSelector();
 		
 		// Initialize all channels
-		for (int port : ports) {
+		for (int port : listenPorts) {
 			ServerSocketChannel serverChannel = ServerSocketChannel.open();
 			serverChannel.configureBlocking(false);
 			

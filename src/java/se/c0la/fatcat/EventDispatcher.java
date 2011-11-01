@@ -1,11 +1,5 @@
 package se.c0la.fatcat;
 
-import java.util.*;
-import java.io.*;
-import java.nio.channels.*;
-import java.net.*;
-
-import se.c0la.fatcat.irc.*;
 import se.c0la.fatcat.context.*;
 import se.c0la.fatcat.async.*;
 
@@ -34,21 +28,25 @@ public class EventDispatcher implements AsyncClientListener
         
 		ctx.userConnectedEvent(client, defaultProtocol);
 	}
-	
+
 	@Override
 	public void messageReceived(AsyncClient asyncClient, String message)
 	{
         SocketClient client = (SocketClient)asyncClient.getUserObject();
 		User user = ctx.getUser(client);
-	
+
+		/* Silently drop empty messages */
+		if(message.length() == 0)
+			return;
+
 		if (user == null) {
 			return;
 		}
-	
+
 		ReceiverProtocol protocol = user.getReceiverProtocol();
 		protocol.translateMessage(user, message);
 	}
-	
+
 	@Override
 	public void disconnected(AsyncClient asyncClient)
 	{
