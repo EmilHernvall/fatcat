@@ -7,22 +7,22 @@ import se.c0la.fatcat.async.*;
 
 public class User
 {
-	private Client client;
-	private Protocol protocol;
+	private volatile Client client;
+	private volatile Protocol protocol;
 	
-	private boolean hasRegistered = false;
+	private volatile boolean hasRegistered = false;
 
-	private String nick;
-	private String user;
-	private String host;
-	private String realName;
+	private volatile String nick;
+	private volatile String user;
+	private volatile String host;
+	private volatile String realName;
 	
-	private Set<Channel> channels;
-	private EnumSet<UserAttribute> attributes;
+	private volatile Set<Channel> channels;
+	private volatile EnumSet<UserAttribute> attributes;
 	
-	private String quitMessage = null;
-	private String awayMessage = null;
-	private long idleSince;
+	private volatile String quitMessage = null;
+	private volatile String awayMessage = null;
+	private volatile long idleSince;
 	
 	public User(User old)
 	{

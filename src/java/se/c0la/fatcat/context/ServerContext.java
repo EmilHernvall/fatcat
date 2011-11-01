@@ -15,8 +15,6 @@ import se.c0la.fatcat.irc.*;
  */
 public class ServerContext
 {
-	Map<String, Operator> operators = new HashMap<String, Operator>();
-
 	private static class CaseInsensitiveStringComparator implements Comparator<String>
 	{
 		public int compare(String a, String b)
@@ -26,27 +24,27 @@ public class ServerContext
 	}
 
 	private AsyncServer server;
+    private EventListener listener;
 
 	private Date startDate;
-
-	private IRCProtocol ircProtocol;
+	private Map<String, Operator> operators;
 
 	// Invariant: users.values() == nicks.values()
 	private Map<Client, User> users;
 	private Map<String, User> nicks;
 
-	private Map<String, Channel> channels;
+	private volatile Map<String, Channel> channels;
 	
-	private int maxUserCount;
-	private int maxChannelCount;
+	private volatile int maxUserCount;
+	private volatile int maxChannelCount;
 
-	private long maxUserCountHappened;
-	private long maxChannelCountHappened;
+	private volatile long maxUserCountHappened;
+	private volatile long maxChannelCountHappened;
 
 	public ServerContext(AsyncServer server)
-	throws NoSuchAlgorithmException
 	{
 		this.server = server;
+        this.listener = new EventAdapter();
 
 		this.startDate = new Date();
 
@@ -55,11 +53,19 @@ public class ServerContext
 
 		channels = new TreeMap<String, Channel>(new CaseInsensitiveStringComparator());
 
-		ircProtocol = new IRCProtocol(this);
-
-		operators.put("erik", new Operator("erik", "25cfe5b055cf6b1fd5205f36a43c9a0eb12d3b67a6064973d69368e186d19b62"));
-		operators.put("emil", new Operator("emil", "1639622dfac80e688b73aa31848e297de8d82bac7d2b724a09ec6554165cf182"));
+        try {
+            operators = new HashMap<String, Operator>();
+            operators.put("erik", new Operator("erik", "25cfe5b055cf6b1fd5205f36a43c9a0eb12d3b67a6064973d69368e186d19b62"));
+            operators.put("emil", new Operator("emil", "1639622dfac80e688b73aa31848e297de8d82bac7d2b724a09ec6554165cf182"));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
 	}
+    
+    public void setEventListener(EventListener listener)
+    {
+        this.listener = listener;
+    }
 
 	// Active helper objects
 	public AsyncServer getServer() { return server; }
@@ -132,12 +138,14 @@ public class ServerContext
 	}
 	
 	// Events
-	public void userConnectedEvent(Client client)
+	public void userConnectedEvent(Client client, Protocol protocol)
 	{
 		User user = new User(client);
-		user.setProtocol(ircProtocol);
+		user.setProtocol(protocol);
 
 		users.put(client, user);
+        
+        listener.userConnectedEvent(client, protocol);
 	}
 
 	public void userDisconnectedEvent(Client client)
@@ -181,6 +189,8 @@ public class ServerContext
 				sentTo.add(targetUser);
 			}
 		}
+        
+        listener.userDisconnectedEvent(client);
 	}
 
 	public void userIdentificationEvent(User user, String userName, String mode, String realName)
@@ -204,6 +214,8 @@ public class ServerContext
 				maxUserCountHappened = System.currentTimeMillis();
 			}
 		}
+        
+        listener.userIdentificationEvent(user, userName, mode, realName);
 	}
 	
 	public void nickEvent(User user, String newNick)
@@ -219,8 +231,16 @@ public class ServerContext
 
 		// propagate to users on the same channels as
 		// the source user
-		Set<Channel> channels = user.getChannels();
 		Set<User> sentTo = new HashSet<User>();
+        PropagationProtocol propProtocol;
+        
+        if (user.getNick() != null) {
+            propProtocol = user.getPropagationProtocol();
+            propProtocol.nickChange(user, user, newNick);
+            sentTo.add(user);
+        }
+        
+		Set<Channel> channels = user.getChannels();
 		for (Channel channel : channels) {
 			Set<User> users = channel.getUsers();
 			
@@ -228,8 +248,8 @@ public class ServerContext
 				if (sentTo.contains(targetUser)) {
 					continue;
 				}
-				
-				PropagationProtocol propProtocol = targetUser.getPropagationProtocol();
+                
+				propProtocol = targetUser.getPropagationProtocol();
 				propProtocol.nickChange(targetUser, user, newNick);
 				
 				sentTo.add(targetUser);
@@ -250,6 +270,8 @@ public class ServerContext
 				maxUserCountHappened = System.currentTimeMillis();
 			}
 		}
+        
+        listener.nickEvent(user, newNick);
 	}
 	
 	public void messageEvent(User sourceUser, String targetName, String message)
@@ -279,6 +301,8 @@ public class ServerContext
 			PropagationProtocol propProtocol = recvUser.getPropagationProtocol();
 			propProtocol.message(recvUser, sourceUser, targetName, message);
 		}
+        
+        listener.messageEvent(sourceUser, targetName, message);
 	}
 	
 	public void noticeEvent(User sourceUser, String targetName, String message)
@@ -307,6 +331,8 @@ public class ServerContext
 			PropagationProtocol propProtocol = recvUser.getPropagationProtocol();
 			propProtocol.notice(recvUser, sourceUser, targetName, message);
 		}
+        
+        listener.noticeEvent(sourceUser, targetName, message);
 	}
 	
 	public void joinEvent(User user, String name)
@@ -347,6 +373,8 @@ public class ServerContext
 			PropagationProtocol propProtocol = targetUser.getPropagationProtocol();
 			propProtocol.joinedChannel(targetUser, user, channel);
 		}
+        
+        listener.joinEvent(user, name);
 	}
 	
 	public void inviteEvent(User sourceUser, Channel channel, User targetUser)
@@ -356,6 +384,8 @@ public class ServerContext
 		
 		PropagationProtocol propProtocol = targetUser.getPropagationProtocol();
 		propProtocol.inviteToChannel(targetUser, sourceUser, channel);
+        
+        listener.inviteEvent(sourceUser, channel, targetUser);
 	}
 	
 	public void topicEvent(Channel channel, User user, String newTopic)
@@ -369,6 +399,8 @@ public class ServerContext
 			PropagationProtocol propProtocol = targetUser.getPropagationProtocol();
 			propProtocol.topicChanged(targetUser, user, channel, newTopic);
 		}
+        
+        listener.topicEvent(channel, user, newTopic);
 	}
 
 	public void partEvent(User user, String name, String message)
@@ -396,6 +428,8 @@ public class ServerContext
 		if (channel.getUserCount() == 0) {
 			channels.remove(channel.getName());
 		}
+        
+        listener.partEvent(user, name, message);
 	}
 	
 	public void kickEvent(User user, String channelName, User kickUser, String message)
@@ -417,6 +451,8 @@ public class ServerContext
 		
 		channel.removeUser(kickUser);
 		kickUser.removeChannel(channel);
+        
+        listener.kickEvent(user, channelName, kickUser, message);
 	}
 
 	public void operEvent(User user)
@@ -425,17 +461,23 @@ public class ServerContext
 		user = users.get(user.getClient());
 
 		user.setAttribute(UserAttribute.OPERATOR);
+        
+        listener.operEvent(user);
 	}
 
-	public void killEvent(User targetUser, User sourceUser, String quitmessage)
+	public void killEvent(User targetUser, User sourceUser, String quitMessage)
 	{
 		targetUser = users.get(targetUser.getClient());
 		PropagationProtocol propProtocol = targetUser.getPropagationProtocol();
 
-		propProtocol.quit(targetUser, sourceUser, quitmessage);
+		propProtocol.quit(targetUser, sourceUser, quitMessage);
 
-		targetUser.setQuitMessage(quitmessage);
-		server.closeConnection(targetUser.getClient());
+		targetUser.setQuitMessage(quitMessage);
+        
+        Client client = targetUser.getClient();
+		client.closeConnection();
+        
+        listener.killEvent(targetUser, sourceUser, quitMessage);
 	}
 
 	public void userAttributeEvent(User user, List<AttributeChange> userAttrs)
@@ -452,6 +494,8 @@ public class ServerContext
 				user.removeAttribute(attr);
 			}
 		}
+        
+        listener.userAttributeEvent(user, userAttrs);
 	}
 	
 	public void channelAttributeEvent(User user, Channel channel, 
@@ -507,6 +551,8 @@ public class ServerContext
 			PropagationProtocol propProtocol = user.getPropagationProtocol();
 			propProtocol.attributeChange(targetUser, user, channel, channelAttrs);
 		}
+        
+        listener.channelAttributeEvent(user, channel, channelAttrs);
 	}
 	
 	public void quitEvent(User user, String message)
@@ -517,8 +563,10 @@ public class ServerContext
 		// an outside source. Lets retrieve a writable instance.
 		user = users.get(user.getClient());
 		user.setQuitMessage(message);
-		
-		server.closeConnection(client);
+	
+		client.closeConnection();
+        
+        listener.quitEvent(user, message);
 	}
 	
 	public void awayEvent(User user, String message)
@@ -528,6 +576,8 @@ public class ServerContext
 		user = users.get(user.getClient());
 		user.setAwayMessage(message);
 		user.setAttribute(UserAttribute.AWAY);
+        
+        listener.awayEvent(user, message);
 	}
 	
 	public void notAwayEvent(User user)
@@ -537,12 +587,17 @@ public class ServerContext
 		user = users.get(user.getClient());
 		user.setAwayMessage(null);
 		user.removeAttribute(UserAttribute.AWAY);
+        
+        listener.notAwayEvent(user);
 	}
 	
-	public void idleEvent(User user) {
+	public void idleEvent(User user) 
+    {
 		// User objects are read-only when we receive them from
 		// an outside source. Lets retrieve a writable instance.
 		user = users.get(user.getClient());
 		user.setIdleSince(System.currentTimeMillis());
+        
+        listener.idleEvent(user);
 	}
 }

@@ -9,29 +9,38 @@ import se.c0la.fatcat.irc.*;
 import se.c0la.fatcat.context.*;
 import se.c0la.fatcat.async.*;
 
-public class EventDispatcher implements ClientListener
+public class EventDispatcher implements AsyncClientListener
 {
 	private AsyncServer server;
 	private ServerContext ctx;
+    private Protocol defaultProtocol;
 
 	public EventDispatcher(AsyncServer server, ServerContext ctx)
 	{
 		this.server = server;
 		this.ctx = ctx;
 	}
+    
+    public void setDefaultProtocol(Protocol protocol)
+    {
+        this.defaultProtocol = protocol;
+    }
 
 	@Override
-	public void connected(Client client)
+	public void connected(AsyncClient asyncClient)
 	{
-		ctx.userConnectedEvent(client);
+        SocketClient client = new SocketClient(server, asyncClient);
+        asyncClient.setUserObject(client);
+        
+		ctx.userConnectedEvent(client, defaultProtocol);
 	}
 	
 	@Override
-	public void messageReceived(Client client, String message)
+	public void messageReceived(AsyncClient asyncClient, String message)
 	{
+        SocketClient client = (SocketClient)asyncClient.getUserObject();
 		User user = ctx.getUser(client);
 	
-		System.out.println("raw: " + message);
 		if (user == null) {
 			return;
 		}
@@ -41,8 +50,9 @@ public class EventDispatcher implements ClientListener
 	}
 	
 	@Override
-	public void disconnected(Client client)
+	public void disconnected(AsyncClient asyncClient)
 	{
+        SocketClient client = (SocketClient)asyncClient.getUserObject();
 		ctx.userDisconnectedEvent(client);
 	}
 }

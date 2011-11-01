@@ -17,6 +17,7 @@ public class FatCat
 			
 			ServerContext ctx = new ServerContext(server);
 			EventDispatcher dispatcher = new EventDispatcher(server, ctx);
+            dispatcher.setDefaultProtocol(new IRCProtocol(ctx));
 			
 			ExecutorService monitoringService = Executors.newSingleThreadExecutor();
 			monitoringService.submit(new ConnectionMonitor(ctx));

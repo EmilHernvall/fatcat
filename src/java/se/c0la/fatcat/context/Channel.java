@@ -9,11 +9,11 @@ public class Channel
 {
 	public static class Ban
 	{
-		private String nickMask;
-		private String userMask;
-		private String hostMask;
+		private volatile String nickMask;
+		private volatile String userMask;
+		private volatile String hostMask;
 		
-		private long timestamp;
+		private volatile long timestamp;
 	
 		public Ban(String nickMask, String userMask, String hostMask, long timestamp)
 		{
@@ -81,15 +81,15 @@ public class Channel
 		}
 	}
 
-	private String name;
-	private String topic = "";
-	private String topicChanger = "";
+	private volatile String name;
+	private volatile String topic = "";
+	private volatile String topicChanger = "";
 	private int topicTime = 0;
 
-	protected Map<ChannelAttribute, AttributeParameter> attributes;
-	protected Map<User, ChannelMember> users;
-	protected List<Ban> bans;
-	protected Set<String> currentInvites;
+	protected volatile Map<ChannelAttribute, AttributeParameter> attributes;
+	protected volatile Map<User, ChannelMember> users;
+	protected volatile List<Ban> bans;
+	protected volatile Set<String> currentInvites;
 
 	public Channel(Channel old)
 	{
@@ -157,8 +157,6 @@ public class Channel
 	public void addInvite(String nick)
 	{
 		currentInvites.add(nick);
-		
-		System.out.println(nick+" "+currentInvites.contains(nick));
 	}
 	
 	public boolean getInvite(String nick)

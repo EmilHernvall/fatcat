@@ -2,7 +2,7 @@ package se.c0la.fatcat.context;
 
 public class AttributeParameter
 {
-	private String data = null;
+	private volatile String data = null;
 
 	public AttributeParameter(AttributeParameter param)
 	{

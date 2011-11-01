@@ -168,6 +168,12 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			String text = num.getText().replace("<nick>", nick);
 			throw new NumericErrorException(num, text);
 		}
+        
+        if (nick.matches("^\\{[^}]+\\}$")) {
+			NumericResponse num = NumericResponse.ERR_ERRONEUSNICKNAME;
+			String text = num.getText().replace("<nick>", nick);
+			throw new NumericErrorException(num, text);
+        }
 
 		User possibleDupe = ctx.getUser(nick);
 		if (possibleDupe != null) {
@@ -309,52 +315,60 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			throw new NumericErrorException(num, text);
 		}
 
-		String channelName = messageParts[1];
-		Channel channel = ctx.getChannel(channelName);
-		if (channel != null && channel.getUser(user) != null) {
-			return;
-		}
+		String[] channelList = messageParts[1].split(",");
+        
+        // Prevalidate all channel names
+        for (String channelName : channelList) {
+            if (!channelName.matches(protocol.getChannelPattern())) {
+                NumericResponse num = NumericResponse.ERR_NOSUCHCHANNEL;
+                String text = num.getText().replace("<channel>", channelName);
+                throw new NumericErrorException(num, text);
+            }
+        }
+        
+        // Join all channels sent
+        for (String channelName : channelList) {
+            Channel channel = ctx.getChannel(channelName);
+            if (channel != null && channel.getUser(user) != null) {
+                return;
+            }
 
-		if (channel == null) {
-			if (!channelName.matches(protocol.getChannelPattern())) {
+            if (channel != null) {
+                List<Channel.Ban> bans = channel.getBans();
+                for (Channel.Ban ban : bans) {
+                    if (ban.matches(user)) {
+                        NumericResponse num = NumericResponse.ERR_BANNEDFROMCHAN;
+                        String text = num.getText().replace("<channel>", channelName);
+                        throw new NumericErrorException(num, text);
+                    }
+                }
 
-			}
-		}
-		else {
-			List<Channel.Ban> bans = channel.getBans();
-			for (Channel.Ban ban : bans) {
-				if (ban.matches(user)) {
-					NumericResponse num = NumericResponse.ERR_BANNEDFROMCHAN;
-					String text = num.getText().replace("<channel>", channelName);
-					throw new NumericErrorException(num, text);
-				}
-			}
+                // Don't let the user join if the channel is invite only
+                if (channel.getAttribute(ChannelAttribute.INVITE_ONLY) != null && !channel.getInvite(user.getNick())) {
+                        NumericResponse num = NumericResponse.ERR_INVITEONLYCHAN;
+                        String text = num.getText().replace("<channel>", channelName);
+                        throw new NumericErrorException(num, text);
+                }
 
-			// Don't let the user join if the channel is invite only
-			if (channel.getAttribute(ChannelAttribute.INVITE_ONLY) != null && !channel.getInvite(user.getNick())) {
-					NumericResponse num = NumericResponse.ERR_INVITEONLYCHAN;
-					String text = num.getText().replace("<channel>", channelName);
-					throw new NumericErrorException(num, text);
-			}
+                // Don't let the user join if the channel has a key and the user hasn't provided it
+                if (channel.getAttribute(ChannelAttribute.KEY) != null && messageParts.length < 3) {
+                        NumericResponse num = NumericResponse.ERR_BADCHANNELKEY;
+                        String text = num.getText().replace("<channel>", channelName);
+                        throw new NumericErrorException(num, text);
+                }
+                else if (channel.getAttribute(ChannelAttribute.KEY) != null && !messageParts[2].equals(channel.getAttribute(ChannelAttribute.KEY).getData())) {
+                        NumericResponse num = NumericResponse.ERR_BADCHANNELKEY;
+                        String text = num.getText().replace("<channel>", channelName);
+                        throw new NumericErrorException(num, text);
+                }
+            }
 
-			// Don't let the user join if the channel has a key and the user hasn't provided it
-			if (channel.getAttribute(ChannelAttribute.KEY) != null && messageParts.length < 3) {
-					NumericResponse num = NumericResponse.ERR_BADCHANNELKEY;
-					String text = num.getText().replace("<channel>", channelName);
-					throw new NumericErrorException(num, text);
-			}
-			else if (channel.getAttribute(ChannelAttribute.KEY) != null && !messageParts[2].equals(channel.getAttribute(ChannelAttribute.KEY).getData())) {
-					NumericResponse num = NumericResponse.ERR_BADCHANNELKEY;
-					String text = num.getText().replace("<channel>", channelName);
-					throw new NumericErrorException(num, text);
-			}
-		}
+            ctx.joinEvent(user, channelName);
 
-		ctx.joinEvent(user, channelName);
-
-		modeMessage(user, new String[] { "MODE", channelName });
-		topicMessage(user, new String[] { "TOPIC", channelName });
-		namesMessage(user, new String[] { "NAMES", channelName });
+            modeMessage(user, new String[] { "MODE", channelName });
+            topicMessage(user, new String[] { "TOPIC", channelName });
+            namesMessage(user, new String[] { "NAMES", channelName });
+        }
 	}
 
 
@@ -482,6 +496,8 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 	public void modeMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if (!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -507,7 +523,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 				String message = String.format(":%s %d %s %s", ctx.getServerName(),
 					modeIs.getNum(), user.getNick(), text);
-				server.sendMessage(user.getClient(), message);
+				client.sendMessage(message);
 
 				return;
 			}
@@ -533,7 +549,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 			String message = String.format(":%s MODE %s %s", user.toString(),
 				user.getNick(), modeString.toString());
-			server.sendMessage(user.getClient(), message);
+			client.sendMessage(message);
 		}
 		// Mode operations on a channel.
 		else {
@@ -562,7 +578,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 				String message = String.format(":%s %d %s %s", ctx.getServerName(),
 					modeIs.getNum(), user.getNick(), text);
-				server.sendMessage(user.getClient(), message);
+				client.sendMessage(message);
 
 				return;
 			}
@@ -592,7 +608,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 					String banListData = String.format(":%s %03d %s %s", ctx.getServerName(),
 						banListCode.getNum(), user.getNick(), banListText);
-					server.sendMessage(user.getClient(), banListData);
+					client.sendMessage(banListData);
 				}
 
 				NumericResponse banListCode = NumericResponse.RPL_ENDOFBANLIST;
@@ -601,7 +617,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 				String banListData = String.format(":%s %d %s %s", ctx.getServerName(),
 					banListCode.getNum(), user.getNick(), banListText);
-				server.sendMessage(user.getClient(), banListData);
+				client.sendMessage(banListData);
 
 				return;
 			}
@@ -650,6 +666,8 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 	public void topicMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if (!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -709,7 +727,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 			infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 				infoCode.getNum(), user.getNick(), infoText);
-			server.sendMessage(user.getClient(), infoData);
+			client.sendMessage(infoData);
 		}
 
 		// The topic is set. Send the topic to the user.
@@ -722,7 +740,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 			infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 				infoCode.getNum(), user.getNick(), infoText);
-			server.sendMessage(user.getClient(), infoData);
+			client.sendMessage(infoData);
 
 			// RPL_TOPICINFO
 			infoCode = NumericResponse.RPL_TOPICINFO;
@@ -733,7 +751,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 			infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 				infoCode.getNum(), user.getNick(), infoText);
-			server.sendMessage(user.getClient(), infoData);
+			client.sendMessage(infoData);
 		}
 
 	}
@@ -742,6 +760,8 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 	public void namesMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if (!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -781,7 +801,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 				// Send a reply every perRow users, and allocate a new buffer.
 				if (i % perRow == 0 && i != 0) {
-					server.sendMessage(user.getClient(), message.toString());
+					client.sendMessage(message.toString());
 
 					message = new StringBuffer();
 					message.append(prepend);
@@ -809,7 +829,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 			// If userCount % perRow != 0, there will be a number of users
 			// remaining in the buffer. Send the last few remaining.
-			server.sendMessage(user.getClient(), message.toString());
+			client.sendMessage(message.toString());
 		}
 
 		// Send end of names message.
@@ -818,12 +838,14 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			ctx.getServerName(), endOfNamesReply.getNum(), user.getNick(),
 			endOfNamesReply.getText().replace("<channel>", channelName));
 
-		server.sendMessage(user.getClient(), endOfNamesData);
+		client.sendMessage(endOfNamesData);
 	}
 
 	public void listMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if (!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -843,20 +865,22 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 
 			infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 				infoCode.getNum(), user.getNick(), infoText);
-			server.sendMessage(user.getClient(), infoData);
+			client.sendMessage(infoData);
 		}
 
 		infoCode = NumericResponse.RPL_LISTEND;
 		infoData = String.format(":%s %03d %s %s",
 			ctx.getServerName(), infoCode.getNum(), user.getNick(), infoCode.getText());
 
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 	}
 
 	public void operMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
 		try {
+            Client client = user.getClient();
+        
 			if (!user.hasRegistered()) {
 				throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 			}
@@ -883,7 +907,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			String infoData = String.format(":%s %03d %s %s",
 				ctx.getServerName(), infoCode.getNum(), user.getNick(), infoCode.getText());
 
-			server.sendMessage(user.getClient(), infoData);
+			client.sendMessage(infoData);
 		} catch (NoSuchAlgorithmException e) {
 			System.err.println(e.getMessage());
 			NumericResponse num = NumericResponse.ERR_PASSWDMISMATCH;
@@ -921,6 +945,8 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 	public void awayMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if(!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -929,14 +955,14 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			ctx.notAwayEvent(user);
 			NumericResponse infoCode = NumericResponse.RPL_UNAWAY;
 			String text = String.format(":%s %03d %s %s", ctx.getServerName(), infoCode.getNum(), user.getNick(), infoCode.getText());
-			server.sendMessage(user.getClient(), text);
+			client.sendMessage(text);
 		}
 		else
 		{
 			ctx.awayEvent(user, messageParts[1]);
 			NumericResponse infoCode = NumericResponse.RPL_NOWAWAY;
 			String text = String.format(":%s %03d %s %s", ctx.getServerName(), infoCode.getNum(), user.getNick(), infoCode.getText());
-			server.sendMessage(user.getClient(), text);
+			client.sendMessage(text);
 		}
 	}
 
@@ -950,6 +976,8 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 	public void lusersMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if (!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -962,7 +990,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			.replace("<servers>", Integer.toString(ctx.getServerCount()));
 		String infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoText);
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 
 		// RPL_LUSEROP
 		infoCode = NumericResponse.RPL_LUSEROP;
@@ -970,7 +998,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			.replace("<operators>", Integer.toString(ctx.getOperatorCount()));
 		infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoText);
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 
 		// RPL_LUSERUNKNOWN
 		infoCode = NumericResponse.RPL_LUSERUNKNOWN;
@@ -978,7 +1006,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			.replace("<unknowns>", Integer.toString(ctx.getUnknownsCount()));
 		infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoText);
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 
 		// RPL_LUSERCHANNELS
 		infoCode = NumericResponse.RPL_LUSERCHANNELS;
@@ -986,7 +1014,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			.replace("<channels>", Integer.toString(ctx.getChannelCount()));
 		infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoText);
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 
 		// LUSERME
 		infoCode = NumericResponse.RPL_LUSERME;
@@ -995,12 +1023,14 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			.replace("<servers>", Integer.toString(ctx.getServerCount()));
 		infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoText);
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 	}
 
 	public void motdMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if (!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -1011,7 +1041,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			.replace("<server>", ctx.getServerName());
 		String infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoText);
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 
 		// MOTD
 		infoCode = NumericResponse.RPL_MOTD;
@@ -1019,13 +1049,13 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			.replace("<text>", "Det finns inget MOTD! :D :D :D");
 		infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoText);
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 
 		// ENDOFMOTD
 		infoCode = NumericResponse.RPL_ENDOFMOTD;
 		infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoCode.getText());
-		server.sendMessage(user.getClient(), infoData);
+		client.sendMessage(infoData);
 	}
 
 	public void versionMessage(User user, String[] messageParts)
@@ -1040,12 +1070,15 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		String infoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			infoCode.getNum(), user.getNick(), infoText);
 
-		server.sendMessage(user.getClient(), infoData);
+        Client client = user.getClient();
+		client.sendMessage(infoData);
 	}
 
 	public void whoisMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if (!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -1072,7 +1105,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		String whoisUserData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			whoisUser.getNum(), user.getNick(), whoisUserText);
 
-		server.sendMessage(user.getClient(), whoisUserData);
+		client.sendMessage(whoisUserData);
 
 		// RPL_WHOISSERVER
 		NumericResponse whoisServer = NumericResponse.RPL_WHOISSERVER;
@@ -1083,18 +1116,17 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		String whoisServerData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			whoisServer.getNum(), user.getNick(), whoisServerText);
 
-		server.sendMessage(user.getClient(), whoisServerData);
+		client.sendMessage(whoisServerData);
 
 		// RPL_WHOISOPERATOR
-		if (queryUser.getAttribute(UserAttribute.OPERATOR))
-		{
+		if (queryUser.getAttribute(UserAttribute.OPERATOR)) {
 			NumericResponse whoisOperator = NumericResponse.RPL_WHOISOPERATOR;
 			String whoisOperatorText = whoisOperator.getText()
 				.replace("<nick>", queryUser.getNick());
 			String whoisOperatorData = String.format(":%s %03d %s %s", ctx.getServerName(),
 				whoisOperator.getNum(), user.getNick(), whoisOperatorText);
 
-			server.sendMessage(user.getClient(), whoisOperatorData);
+			client.sendMessage(whoisOperatorData);
 		}
 
 		// RPL_WHOISIDLE
@@ -1105,7 +1137,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		String whoisIdleData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			whoisIdle.getNum(), user.getNick(), whoisIdleText);
 
-		server.sendMessage(user.getClient(), whoisIdleData);
+		client.sendMessage(whoisIdleData);
 
 		// RPL_WHOISCHANNELS
 		Set<Channel> channels = queryUser.getChannels();
@@ -1124,7 +1156,19 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			String whoisChannelsData = String.format(":%s %03d %s %s", ctx.getServerName(),
 				whoisChannels.getNum(), user.getNick(), channelsBuffer.toString());
 
-			server.sendMessage(user.getClient(), whoisChannelsData);
+			client.sendMessage(whoisChannelsData);
+		}
+        
+        // RPL_WHOISSPECIAL
+		if (queryUser.getAttribute(UserAttribute.MINECRAFT)) {
+			NumericResponse special = NumericResponse.RPL_WHOISSPECIAL;
+			String specialText = special.getText()
+				.replace("<nick>", queryUser.getNick())
+				.replace("<message>", "is a Minecraft player.");
+			String specialData = String.format(":%s %03d %s %s", ctx.getServerName(),
+				special.getNum(), user.getNick(), specialText);
+
+			client.sendMessage(specialData);
 		}
 
 		// RPL_ENDOFWHOIS
@@ -1134,12 +1178,14 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		String endOfWhoisData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			endOfWhois.getNum(), user.getNick(), endOfWhoisText);
 
-		server.sendMessage(user.getClient(), endOfWhoisData);
+		client.sendMessage(endOfWhoisData);
 	}
 
 	public void whoMessage(User user, String[] messageParts)
 	throws ErrorConditionException, NumericErrorException
 	{
+        Client client = user.getClient();
+    
 		if (!user.hasRegistered()) {
 			throw new NumericErrorException(NumericResponse.ERR_NOTREGISTERED);
 		}
@@ -1180,7 +1226,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 				String whoData = String.format(":%s %03d %s %s", ctx.getServerName(),
 					num.getNum(), user.getNick(), whoText);
 
-				server.sendMessage(user.getClient(), whoData);
+                client.sendMessage(whoData);
 			}
 		}
 
@@ -1191,7 +1237,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		String endOfWhoisData = String.format(":%s %03d %s %s", ctx.getServerName(),
 			endOfWhois.getNum(), user.getNick(), endOfWhoisText);
 
-		server.sendMessage(user.getClient(), endOfWhoisData);
+		client.sendMessage(endOfWhoisData);
 	}
 
 	public void pingMessage(User user, String[] messageParts)
@@ -1206,7 +1252,8 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		String reply = String.format(":%s PONG :%s",
 			ctx.getServerName(), messageParts[1]);
 
-		server.sendMessage(user.getClient(), reply);
+        Client client = user.getClient();
+		client.sendMessage(reply);
 	}
 
 	public void timeMessage(User user, String[] messageParts)
@@ -1222,7 +1269,8 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 			.replace("<server>", ctx.getServerName())
 			.replace("<time>", dateFormatter.format(today));
 
-		server.sendMessage(user.getClient(), text);
+        Client client = user.getClient();
+		client.sendMessage(text);
 	}
 
 	/**
@@ -1256,9 +1304,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		String message = String.format(":%s %d %s %s", ctx.getServerName(),
 			code.getNum(), (user.getNick() != null ? user.getNick() : ""), actualText);
 
-		System.out.println(message);
-
 		Client client = user.getClient();
-		server.sendMessage(client, message);
+		client.sendMessage(message);
 	}
 }

@@ -12,54 +12,66 @@ public class AsyncServer
 {
 	private final static int BUFFER_SIZE = 8092;
 	
-	private List<ClientListener> listeners;
+	private List<AsyncClientListener> listeners;
 
 	private Selector socketSelector = null;
+    //private ServerSocketChannel serverChannel = null;
+    private List<ServerSocket> sockets = null;
 	private ByteBuffer readBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 	
-	private Set<Client> clients;
-	private Queue<Client> writeQueue;
-	private Queue<Client> disconnectQueue;
+	private Set<AsyncClient> clients;
+	private Queue<AsyncClient> writeQueue;
+	private Queue<AsyncClient> disconnectQueue;
 	
 	private int clientSequence;
+    
+    private volatile boolean running = false;
 
 	public AsyncServer()
 	{
-		listeners = new ArrayList<ClientListener>();
-		clients = new ConcurrentSkipListSet<Client>();
-		writeQueue = new ConcurrentLinkedQueue<Client>();
-		disconnectQueue = new ConcurrentLinkedQueue<Client>();
+        sockets = new ArrayList<ServerSocket>();
+		listeners = new ArrayList<AsyncClientListener>();
+		clients = new ConcurrentSkipListSet<AsyncClient>();
+		writeQueue = new ConcurrentLinkedQueue<AsyncClient>();
+		disconnectQueue = new ConcurrentLinkedQueue<AsyncClient>();
 		
 		clientSequence = 0;
 	}
 	
-	public void addClientListener(ClientListener listener)
+	public void addClientListener(AsyncClientListener listener)
 	{
 		listeners.add(listener);
 	}
 	
-	public void removeClientListener(ClientListener listener)
+	public void removeClientListener(AsyncClientListener listener)
 	{
 		listeners.remove(listener);
 	}
 	
-	public Set<Client> getClients()
+	public Set<AsyncClient> getClients()
 	{
 		return Collections.unmodifiableSet(clients);
 	}
 	
-	public void sendMessage(Client client, String message)
+	public void sendMessage(AsyncClient client, String message)
 	{
 		client.addMessage(message);
 		writeQueue.offer(client);
 		socketSelector.wakeup();
 	}
 	
-	public void closeConnection(Client client)
+	public void closeConnection(AsyncClient client)
 	{
 		disconnectQueue.add(client);
 		socketSelector.wakeup();
 	}
+    
+    public void shutdown()
+    {
+        running = false;
+        disconnectQueue.addAll(clients);
+        socketSelector.wakeup();
+    }
 	
 	public void listen(int port)
 	throws IOException
@@ -80,22 +92,24 @@ public class AsyncServer
 		
 		// Initialize all channels
 		for (int port : ports) {
-			System.out.println("Listening on " + port);
 			ServerSocketChannel serverChannel = ServerSocketChannel.open();
 			serverChannel.configureBlocking(false);
 			
 			ServerSocket socket = serverChannel.socket();
+            socket.setReuseAddress(true);
 			socket.bind(new InetSocketAddress(port));
+            sockets.add(socket);
 			
 			serverChannel.register(socketSelector, SelectionKey.OP_ACCEPT);
 		}
-		
+        
 		// Main loop
-		while (true) {
+        running = true;
+		while (running) {
 		
 			// Check the list of clients with pending writes
 			// and set them to write mode
-			Client client;
+			AsyncClient client;
 			while ((client = writeQueue.poll()) != null) {
 				try {
 					SelectionKey key = client.getSelectionKey();
@@ -141,6 +155,12 @@ public class AsyncServer
 				disconnect(client);
 			}
 		}
+        
+        for (ServerSocket socket : sockets) {
+            socket.close();
+        }
+        //serverChannel.close();
+        socketSelector.close();
 	}
 	
 	private void accept(SelectionKey key)
@@ -157,12 +177,12 @@ public class AsyncServer
 		// Retrieve the SectionKey and associate it with 
 		// a new Client object
 		SelectionKey newKey = clientChannel.keyFor(socketSelector);
-		Client client = new Client(clientSequence++, newKey);
+		AsyncClient client = new AsyncClient(clientSequence++, newKey);
 		clients.add(client);
 		newKey.attach(client);
-		
+        
 		// Notify listeners
-		for (ClientListener listener : listeners) {
+		for (AsyncClientListener listener : listeners) {
 			listener.connected(client);
 		}
 		
@@ -173,7 +193,7 @@ public class AsyncServer
 	private void read(SelectionKey key)
 	throws IOException
 	{
-		Client client = (Client)key.attachment();
+		AsyncClient client = (AsyncClient)key.attachment();
 		SocketChannel clientChannel = client.getChannel();
 		
 		readBuffer.clear();
@@ -211,7 +231,7 @@ public class AsyncServer
 			data = data.substring(idx + 1);
 			
 			// Notify listeners
-			for (ClientListener listener : listeners) {
+			for (AsyncClientListener listener : listeners) {
 				listener.messageReceived(client, line);
 			}
 		}
@@ -228,7 +248,7 @@ public class AsyncServer
 	private void write(SelectionKey key)
 	throws IOException
 	{
-		Client client = (Client)key.attachment();
+		AsyncClient client = (AsyncClient)key.attachment();
 		SocketChannel clientChannel = client.getChannel();
 		
 		List<String> messages = client.getMessages();
@@ -244,7 +264,7 @@ public class AsyncServer
 		key.interestOps(SelectionKey.OP_READ);
 	}
 	
-	private void disconnect(Client client)
+	private void disconnect(AsyncClient client)
 	{
 		clients.remove(client);
 	
@@ -262,7 +282,7 @@ public class AsyncServer
 		}
 
 		// Notify listeners
-		for (ClientListener listener : listeners) {
+		for (AsyncClientListener listener : listeners) {
 			listener.disconnected(client);
 		}
 	}
