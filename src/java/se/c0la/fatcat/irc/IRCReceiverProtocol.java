@@ -13,7 +13,7 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 	private IRCProtocol protocol;
 
 	private ServerContext ctx;
-	private AsyncServer server;
+	private AsyncSocketServer server;
 
 	public IRCReceiverProtocol(IRCProtocol protocol)
 	{

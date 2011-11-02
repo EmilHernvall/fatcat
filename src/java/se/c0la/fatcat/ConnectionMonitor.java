@@ -18,7 +18,7 @@ public class ConnectionMonitor implements Runnable
 	private static final long TIMEOUT_INTERVAL = 120000L;
 
 	private ServerContext ctx;
-	private AsyncServer server;
+	private AsyncSocketServer server;
 
 	public ConnectionMonitor(ServerContext ctx)
 	{
@@ -30,10 +30,10 @@ public class ConnectionMonitor implements Runnable
 	{
 		while (true) {
 			try {
-				Set<AsyncConnection> clients = server.getClients();
+				Set<AsyncConnection> connections = server.getConnections();
 				
 				long diff = 0;
-				for (AsyncConnection conn : clients) {
+				for (AsyncConnection conn : connections) {
 				
 					diff = System.currentTimeMillis() - conn.getLastActivity();
 					if (diff > PING_INTERVAL + TIMEOUT_INTERVAL) {

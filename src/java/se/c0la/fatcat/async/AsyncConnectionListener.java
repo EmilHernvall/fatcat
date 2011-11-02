@@ -1,11 +1,11 @@
 package se.c0la.fatcat.async;
 
-import java.io.*;
-import java.net.*;
+import java.net.InetSocketAddress;
 
 public interface AsyncConnectionListener
 {
-	public void connected(AsyncConnection client);
-	public void messageReceived(AsyncConnection client, String message);
-	public void disconnected(AsyncConnection client);
+    public void connectionFailed(InetSocketAddress host);
+	public void connected(AsyncConnection conn);
+	public void messageReceived(AsyncConnection conn, String message);
+	public void disconnected(AsyncConnection conn);
 }

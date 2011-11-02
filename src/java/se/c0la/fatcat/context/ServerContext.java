@@ -23,7 +23,7 @@ public class ServerContext
 		}
 	}
 
-	private AsyncServer server;
+	private AsyncSocketServer server;
     private EventListener listener;
 
 	private Date startDate;
@@ -44,7 +44,7 @@ public class ServerContext
 	private volatile long maxUserCountHappened;
 	private volatile long maxChannelCountHappened;
 
-	public ServerContext(AsyncServer server)
+	public ServerContext(AsyncSocketServer server)
 	{
 		this.server = server;
         this.listener = new EventAdapter();
@@ -65,7 +65,7 @@ public class ServerContext
     }
 
 	// Active helper objects
-	public AsyncServer getServer() { return server; }
+	public AsyncSocketServer getServer() { return server; }
 	public void addOperator(String name, Operator o) {
 		operators.put(name, o);
 	}

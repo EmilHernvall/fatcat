@@ -1,15 +1,17 @@
 package se.c0la.fatcat;
 
+import java.net.InetSocketAddress;
+
 import se.c0la.fatcat.context.*;
 import se.c0la.fatcat.async.*;
 
 public class EventDispatcher implements AsyncConnectionListener
 {
-	private AsyncServer server;
+	private AsyncSocketServer server;
 	private ServerContext ctx;
     private Protocol defaultProtocol;
 
-	public EventDispatcher(AsyncServer server, ServerContext ctx)
+	public EventDispatcher(AsyncSocketServer server, ServerContext ctx)
 	{
 		this.server = server;
 		this.ctx = ctx;
@@ -18,6 +20,11 @@ public class EventDispatcher implements AsyncConnectionListener
     public void setDefaultProtocol(Protocol protocol)
     {
         this.defaultProtocol = protocol;
+    }
+    
+    @Override
+    public void connectionFailed(InetSocketAddress host)
+    {
     }
 
 	@Override

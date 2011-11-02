@@ -4,10 +4,10 @@ import se.c0la.fatcat.async.*;
 
 public class SocketClient implements Client
 {
-    private AsyncServer server;
+    private AsyncSocketServer server;
     private AsyncConnection conn;
 
-    public SocketClient(AsyncServer server, AsyncConnection conn)
+    public SocketClient(AsyncSocketServer server, AsyncConnection conn)
     {
         this.server = server;
         this.conn = conn;

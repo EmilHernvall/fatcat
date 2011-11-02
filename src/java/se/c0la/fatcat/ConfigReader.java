@@ -9,7 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.ArrayList;
 
-import se.c0la.fatcat.async.AsyncServer;
+import se.c0la.fatcat.async.AsyncSocketServer;
 import se.c0la.fatcat.context.Operator;
 import se.c0la.fatcat.context.ServerContext;
 import se.c0la.fatcat.irc.MessageTokenizer;
@@ -17,7 +17,7 @@ import se.c0la.fatcat.irc.MessageTokenizer;
 public class ConfigReader 
 {
 	private ServerContext ctx;
-	private AsyncServer server;
+	private AsyncSocketServer server;
 	private List<String[]> foundSettings;
 
 	public ConfigReader() 
@@ -35,12 +35,12 @@ public class ConfigReader
 		this.ctx = ctx;
 	}
 
-	public AsyncServer getAsyncServer() 
+	public AsyncSocketServer getAsyncServer() 
     { 
         return server; 
     }
     
-	public void setAsyncServer(AsyncServer server) 
+	public void setAsyncServer(AsyncSocketServer server) 
     {
 		this.server = server;
 	}

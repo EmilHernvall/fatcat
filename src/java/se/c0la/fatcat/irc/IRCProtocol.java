@@ -72,7 +72,7 @@ public class IRCProtocol implements Protocol
 		return ctx;
 	}
 	
-	public AsyncServer getServer()
+	public AsyncSocketServer getServer()
 	{
 		return ctx.getServer();
 	}

@@ -11,7 +11,7 @@ public class IRCPropagationProtocol implements PropagationProtocol
 	private IRCProtocol protocol;
 
 	private ServerContext ctx;
-	private AsyncServer server;
+	private AsyncSocketServer server;
 
 	public IRCPropagationProtocol(IRCProtocol protocol)
 	{

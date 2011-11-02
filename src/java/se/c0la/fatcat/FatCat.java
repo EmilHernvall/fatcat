@@ -19,7 +19,7 @@ public class FatCat
                 return;
             }
         
-			AsyncServer server = new AsyncServer();
+			AsyncSocketServer server = new AsyncSocketServer();
 			ServerContext ctx = new ServerContext(server);
 			
 			ConfigReader config = new ConfigReader();
@@ -30,12 +30,12 @@ public class FatCat
 			
 			EventDispatcher dispatcher = new EventDispatcher(server, ctx);
             dispatcher.setDefaultProtocol(new IRCProtocol(ctx));
+			server.addConnectionListener(dispatcher);
 			
+			server.listen();
+            
 			ExecutorService monitoringService = Executors.newSingleThreadExecutor();
 			monitoringService.submit(new ConnectionMonitor(ctx));
-			
-			server.addClientListener(dispatcher);
-			server.listen();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
