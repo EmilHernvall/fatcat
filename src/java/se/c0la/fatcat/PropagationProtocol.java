@@ -11,6 +11,7 @@ import se.c0la.fatcat.context.*;
 public interface PropagationProtocol
 {
 	public void welcomeSequence(User targetUser);
+    public void invalidPassword(User targetUser);
 	public void sendHeartBeat(User targetUser);
 	public void message(User targetUser, User source, String target, String message);
 	public void notice(User targetUser, User source, String target, String message);

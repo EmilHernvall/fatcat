@@ -23,6 +23,7 @@ public enum NumericResponse
 	RPL_WHOISIDLE (317, "<nick> <idle> :seconds idle"),
 	RPL_ENDOFWHOIS (318, "<nick> :End of WHOIS list"),
 	RPL_WHOISCHANNELS (319, ""),
+	RPL_WHOISSPECIAL (320, "<nick> :<message>"),
 
 	RPL_LIST (322, "<channel> <# visible> :<topic>"),
 	RPL_LISTEND (323, ":End of LIST"),

@@ -30,10 +30,10 @@ public class ConnectionMonitor implements Runnable
 	{
 		while (true) {
 			try {
-				Set<Client> clients = server.getClients();
+				Set<AsyncClient> clients = server.getClients();
 				
 				long diff = 0;
-				for (Client client : clients) {
+				for (AsyncClient client : clients) {
 				
 					diff = System.currentTimeMillis() - client.getLastActivity();
 					if (diff > PING_INTERVAL + TIMEOUT_INTERVAL) {
@@ -58,22 +58,24 @@ public class ConnectionMonitor implements Runnable
 		}
 	}
 	
-	private void sendPing(Client client)
+	private void sendPing(AsyncClient asyncClient)
 	{	
+        Client client = (Client)asyncClient.getUserObject();
 		User user = ctx.getUser(client);
 		if (user == null) {
 			return;
 		}
 		
-		client.setLastHeartBeat(System.currentTimeMillis());
+		asyncClient.setLastHeartBeat(System.currentTimeMillis());
 		
 		PropagationProtocol propProtocol = user.getPropagationProtocol();
 		propProtocol.sendHeartBeat(user);
 	}
 	
-	private void pingTimeout(Client client)
+	private void pingTimeout(AsyncClient asyncClient)
 	{
+        Client client = (Client)asyncClient.getUserObject();
 		ctx.setQuitMessage(client, "Ping timeout");
-		server.closeConnection(client);
+		client.closeConnection();
 	}
 }

@@ -4,7 +4,8 @@ public enum UserAttribute
 {
 	INVISIBLE (false),
 	OPERATOR (true),
-	AWAY (true);
+	AWAY (true),
+    MINECRAFT (true);
 	
 	private boolean serverOnly;
 	

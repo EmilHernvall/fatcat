@@ -28,6 +28,7 @@ public class IRCProtocol implements Protocol
 		
 		userModes.addMode(new Modes.ModeInfo<UserAttribute>('i', false, UserAttribute.INVISIBLE));
 		userModes.addMode(new Modes.ModeInfo<UserAttribute>('O', false, UserAttribute.OPERATOR));		
+		userModes.addMode(new Modes.ModeInfo<UserAttribute>('M', false, UserAttribute.MINECRAFT));		
 		
 		this.channelModes = new Modes<ChannelAttribute>();
 		

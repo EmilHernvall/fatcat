@@ -33,7 +33,8 @@ public class IRCPropagationProtocol implements PropagationProtocol
 			
 		String welcomeData = String.format(":%s %03d %s %s", ctx.getServerName(), 
 			welcomeCode.getNum(), targetUser.getNick(), welcomeText);
-		server.sendMessage(client, welcomeData);
+            
+		client.sendMessage(welcomeData);
 		
 		// 002
 		NumericResponse hostCode = NumericResponse.RPL_YOURHOST;
@@ -43,7 +44,8 @@ public class IRCPropagationProtocol implements PropagationProtocol
 			
 		String hostData = String.format(":%s %03d %s %s", ctx.getServerName(), 
 			hostCode.getNum(), targetUser.getNick(), hostText);
-		server.sendMessage(client, hostData);
+            
+		client.sendMessage(hostData);
 		
 		// 003
 		NumericResponse createdCode = NumericResponse.RPL_CREATED;
@@ -52,7 +54,8 @@ public class IRCPropagationProtocol implements PropagationProtocol
 			
 		String createdData = String.format(":%s %03d %s %s", ctx.getServerName(), 
 			createdCode.getNum(), targetUser.getNick(), createdText);
-		server.sendMessage(client, createdData);
+            
+		client.sendMessage(createdData);
 		
 		// 004
 		NumericResponse infoCode = NumericResponse.RPL_MYINFO;
@@ -66,7 +69,8 @@ public class IRCPropagationProtocol implements PropagationProtocol
 			
 		String infoData = String.format(":%s %03d %s %s", ctx.getServerName(), 
 			infoCode.getNum(), targetUser.getNick(), infoText);
-		server.sendMessage(client, infoData);
+            
+		client.sendMessage(infoData);
 		
 		// Send /lusers and /motd when connecting
 		IRCReceiverProtocol recvProp = protocol.getReceiverProtocol();
@@ -81,54 +85,83 @@ public class IRCPropagationProtocol implements PropagationProtocol
 			recvProp.errorMessage(targetUser, e.getCode(), null);
 		}
 	}
+
+    @Override
+    public void invalidPassword(User targetUser)
+    {
+		Client client = targetUser.getClient();
+
+        // ERR_PASSWDMISMATCH
+ 		NumericResponse infoCode = NumericResponse.ERR_PASSWDMISMATCH;
+		String infoText = infoCode.getText();
+			
+		String infoData = String.format(":%s %03d %s %s", ctx.getServerName(), 
+			infoCode.getNum(), targetUser.getNick(), infoText);
+            
+		client.sendMessage(infoData);
+    }
 	
 	@Override
 	public void sendHeartBeat(User targetUser)
 	{
 		String data = String.format(":%s PING %s", ctx.getServerName(), targetUser.getNick());
-		server.sendMessage(targetUser.getClient(), data);
+        
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
 	public void message(User targetUser, User source, String target, String message)
 	{
 		String data = String.format(":%s PRIVMSG %s :%s", source, target, message);
-		server.sendMessage(targetUser.getClient(), data);
+        
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 
 	@Override
 	public void notice(User targetUser, User source, String target,
 			String message) {
 		String data = String.format(":%s NOTICE %s :%s", source, target, message);
-		server.sendMessage(targetUser.getClient(), data);
+        
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
 	public void nickChange(User targetUser, User source, String newNick)
 	{
 		String data = String.format(":%s NICK :%s", source, newNick);
-		server.sendMessage(targetUser.getClient(), data);
+        
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
 	public void joinedChannel(User targetUser, User source, Channel channel)
 	{
 		String data = String.format(":%s JOIN %s", source, channel.getName());
-		server.sendMessage(targetUser.getClient(), data);
+        
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
 	public void partedChannel(User targetUser, User source, Channel channel, String message)
 	{
 		String data = String.format(":%s PART %s :%s", source, channel.getName(), message);
-		server.sendMessage(targetUser.getClient(), data);
+        
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
 	public void inviteToChannel(User targetUser, User sourceUser, Channel channel)
 	{
 		String data = String.format(":%s INVITE %s :%s", sourceUser, targetUser.getNick(), channel.getName());
-		server.sendMessage(targetUser.getClient(), data);
+        
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
@@ -137,7 +170,9 @@ public class IRCPropagationProtocol implements PropagationProtocol
 	{
 		String data = String.format(":%s KICK %s %s :%s", source, channel.getName(), 
 			kickedUser.getNick(), message);
-		server.sendMessage(targetUser.getClient(), data);
+            
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
@@ -145,14 +180,18 @@ public class IRCPropagationProtocol implements PropagationProtocol
 	{
 		String data = String.format(":%s TOPIC %s :%s", sourceUser.getNick(), 
 			channel.getName(), message);
-		server.sendMessage(targetUser.getClient(), data);
+            
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
 	public void quit(User targetUser, User source, String message)
 	{
 		String data = String.format(":%s QUIT :%s", source, message);
-		server.sendMessage(targetUser.getClient(), data);
+        
+        Client client = targetUser.getClient();
+		client.sendMessage(data);
 	}
 	
 	@Override
@@ -164,6 +203,8 @@ public class IRCPropagationProtocol implements PropagationProtocol
 		
 		String message = String.format(":%s MODE %s %s", sourceUser.toString(), 
 			channel.getName(), modeString.toString());
-		server.sendMessage(targetUser.getClient(), message);
+            
+        Client client = targetUser.getClient();
+		client.sendMessage(message);
 	}
 }
