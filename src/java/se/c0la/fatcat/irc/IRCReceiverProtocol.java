@@ -28,11 +28,15 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 	{
 		boolean isIdle = true;
 		try {
+            System.out.println(message);
 			String[] messageParts = MessageTokenizer.tokenize(message);
 			String command = messageParts[0].toUpperCase();
 
 			if ("USER".equals(command)) {
 				userMessage(user, messageParts);
+			} 
+            else if ("PASS".equals(command)) {
+				passMessage(user, messageParts);
 			}
 			else if ("NICK".equals(command)) {
 				nickMessage(user, messageParts);
@@ -150,6 +154,22 @@ public class IRCReceiverProtocol implements ReceiverProtocol
 		}
 
 		ctx.userIdentificationEvent(user, messageParts[1], messageParts[2], messageParts[4]);
+	}
+
+    public void passMessage(User user, String[] messageParts)
+	throws ErrorConditionException, NumericErrorException
+	{
+		if (messageParts.length < 2) {
+			NumericResponse num = NumericResponse.ERR_NEEDMOREPARAMS;
+			String text = num.getText().replace("<command>", messageParts[0]);
+			throw new NumericErrorException(num, text);
+		}
+
+		if (user.hasRegistered()) {
+			throw new NumericErrorException(NumericResponse.ERR_ALREADYREGISTRED);
+		}
+
+		ctx.passwordEvent(user, messageParts[1]);
 	}
 
 	public void nickMessage(User user, String[] messageParts)

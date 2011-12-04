@@ -25,6 +25,7 @@ public class ServerContext
 
 	private AsyncSocketServer server;
     private EventListener listener;
+    private volatile PasswordCallback passwordCallback;
 
 	private Date startDate;
 	private Map<String, Operator> operators;
@@ -62,6 +63,11 @@ public class ServerContext
     public void setEventListener(EventListener listener)
     {
         this.listener = listener;
+    }
+
+    public void setPasswordCallback(PasswordCallback callback)
+    {
+        this.passwordCallback = callback;
     }
 
 	// Active helper objects
@@ -197,6 +203,64 @@ public class ServerContext
         listener.userDisconnectedEvent(client);
 	}
 
+    private void registerUser(User user)
+    {
+        // Before we allow the user to register, verify that...
+        // ...we have a nickname...
+        if (user.getNick() == null) {
+            return;
+        }
+
+        // ...and a username.
+        if (user.getUser() == null) {
+            return;
+        }
+
+        // If password auth is enabled, some extra checking is needed
+        if (passwordCallback != null) {
+            // Don't do anything unless there is a password.
+            if (user.getPassword() == null) {
+                return;
+            }
+
+            // ...also make sure it's correct.
+            if (!passwordCallback.verify(user.getNick(), 
+                        user.getUser(), user.getPassword())) {
+
+                // Invalid password notification here
+                PropagationProtocol propProtocol = user.getPropagationProtocol();
+                propProtocol.invalidPassword(user);
+
+                return;
+            }
+        }
+
+        user.setRegistered();
+
+        PropagationProtocol propProt = user.getPropagationProtocol();
+        propProt.welcomeSequence(user);
+
+        if (users.size() > maxUserCount) {
+            maxUserCount = users.size();
+            maxUserCountHappened = System.currentTimeMillis();
+        }
+    }
+
+    public void passwordEvent(User user, String password)
+    {
+        if (passwordCallback == null) {
+            return;
+        }
+        if (user.hasRegistered()) {
+            return;
+        }
+
+		user = users.get(user.getClient());
+        user.setPassword(password);
+
+        registerUser(user);    
+    }
+
 	public void userIdentificationEvent(User user, String userName, String mode, String realName)
 	throws ErrorConditionException
 	{
@@ -207,17 +271,9 @@ public class ServerContext
 		user.setUser(userName);
 		user.setRealName(realName);
 
-		if (user.getNick() != null && !user.hasRegistered()) {
-			user.setRegistered();
-
-			PropagationProtocol propProt = user.getPropagationProtocol();
-			propProt.welcomeSequence(user);
-
-			if(users.size() > maxUserCount) {
-				maxUserCount = users.size();
-				maxUserCountHappened = System.currentTimeMillis();
-			}
-		}
+	    registerUser(user);	
+        
+        listener.userIdentificationEvent(user, userName, mode, realName);
         
         listener.userIdentificationEvent(user, userName, mode, realName);
 	}
@@ -263,17 +319,9 @@ public class ServerContext
 		nicks.put(newNick, user);
 		user.setNick(newNick);
 
-		if (user.getUser() != null && !user.hasRegistered()) {
-			user.setRegistered();
-
-			PropagationProtocol propProt = user.getPropagationProtocol();
-			propProt.welcomeSequence(user);
-
-			if(users.size() > maxUserCount) {
-				maxUserCount = users.size();
-				maxUserCountHappened = System.currentTimeMillis();
-			}
-		}
+	    registerUser(user);	
+        
+        listener.nickEvent(user, newNick);
         
         listener.nickEvent(user, newNick);
 	}

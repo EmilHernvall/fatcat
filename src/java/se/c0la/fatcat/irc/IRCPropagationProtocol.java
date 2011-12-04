@@ -85,6 +85,21 @@ public class IRCPropagationProtocol implements PropagationProtocol
 			recvProp.errorMessage(targetUser, e.getCode(), null);
 		}
 	}
+
+    @Override
+    public void invalidPassword(User targetUser)
+    {
+		Client client = targetUser.getClient();
+
+        // ERR_PASSWDMISMATCH
+ 		NumericResponse infoCode = NumericResponse.ERR_PASSWDMISMATCH;
+		String infoText = infoCode.getText();
+			
+		String infoData = String.format(":%s %03d %s %s", ctx.getServerName(), 
+			infoCode.getNum(), targetUser.getNick(), infoText);
+            
+		client.sendMessage(infoData);
+    }
 	
 	@Override
 	public void sendHeartBeat(User targetUser)

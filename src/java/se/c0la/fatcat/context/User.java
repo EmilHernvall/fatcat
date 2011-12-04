@@ -16,6 +16,7 @@ public class User
 	private volatile String user;
 	private volatile String host;
 	private volatile String realName;
+    private volatile String password;
 	
 	private volatile Set<Channel> channels;
 	private volatile EnumSet<UserAttribute> attributes;
@@ -78,6 +79,9 @@ public class User
 	
 	public String getRealName() { return realName; }
 	public void setRealName(String v) { this.realName = v; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String v) { this.password = v; }
 	
 	public String getHost() { return host; }
 	
