@@ -51,7 +51,13 @@ public class EventDispatcher implements AsyncConnectionListener
 		}
 
 		ReceiverProtocol protocol = user.getReceiverProtocol();
-		protocol.translateMessage(user, message);
+
+        // Top level exception handler for network events
+        try {
+    		protocol.translateMessage(user, message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 	}
 
 	@Override
